@@ -1,0 +1,140 @@
+B.Linear Regression Results
+Call:
+lm(formula = Present_Price ~ ., data = car)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-13.950  -1.472   0.088   1.099  32.989 
+
+Coefficients:
+                        Estimate Std. Error t value Pr(>|t|)    
+(Intercept)           -4.428e+00  2.607e+00  -1.699   0.0904 .  
+Selling_Price          1.642e+00  5.971e-02  27.491  < 2e-16 ***
+Kms_Driven             1.346e-05  6.257e-06   2.150   0.0323 *  
+Fuel_TypeDiesel       -1.719e+00  2.489e+00  -0.691   0.4903    
+Fuel_TypePetrol       -5.729e-01  2.440e+00  -0.235   0.8145    
+Seller_TypeIndividual -1.579e-01  5.122e-01  -0.308   0.7580    
+TransmissionManual     3.373e-01  6.559e-01   0.514   0.6075    
+Owner                  1.557e+00  8.175e-01   1.905   0.0578 .  
+Age                    6.917e-01  8.462e-02   8.174  9.1e-15 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 3.421 on 293 degrees of freedom
+Multiple R-squared:  0.8471,	Adjusted R-squared:  0.8429 
+F-statistic: 202.9 on 8 and 293 DF,  p-value: < 2.2e-16
+
+C.R-Markdown 
+> ###1. DATA EXPLORATION
+> #Load the dataset into R 
+> cardata<-read.csv("C:/Users/user/AppData/Local/Temp/Temp1_archive.zip/car data.csv")
+> #View the first 6 rows of the dataset
+> head(cardata)
+> #Get dimension
+> dim(cardata)
+> #Add a data point
+> card<- rbind(cardata, "302" = c("city", "2018", "4.34", "5.12", "37000", "Diesel", "Dealer", "Manual", "0"))
+> #Get the summary of the dataset
+> summary(card)                                                                                                                              
+> #View its dimension
+> dim(card)
+> #Check for missingness in the data
+> colSums(is.na(card))
+> #Remove the car name column
+> car=card[, -1]
+> #View the dataset
+> View(car)
+> #Check its structure
+> str(card)
+> #Prepare the dataset
+> car$Year<-as.numeric(car$Year)
+> car$Selling_Price<-as.numeric(car$Selling_Price)
+> car$Present_Price<-as.numeric(car$Present_Price)
+> car$Kms_Driven<-as.numeric(car$Kms_Driven)
+> car$Owner<-as.numeric(car$Owner)
+> #Check the structure again
+> str(car)
+> #Obtain the age of the vehicles
+> car$Present_Year <- 2020
+> car$Age <- car$Present_Year - car$Year
+> #Drop the year and present year columns
+> car<-subset(car,select = -c(Year,Present_Year))
+> #View the column names of the final dataset
+> colnames(car) 
+> #Visualizations
+> library(ggplot2)
+> ggplot(car, aes(x=Age, y=Present_Price))+geom_point()+geom_smooth(method = lm)
+> hist(car$Selling_Price,col="yellow", main="Histogram of Selling Price")
+> hist(car$Kms_Driven,col="green", main="Histogram of Kilometres Driven")
+> plot(car$Fuel_Type, col="blue", main="Plot of Fuel type")
+> plot(car$Seller_Type, col="red", main="Plot of Type of seller")
+> plot(car$Transmission, col="gray", main="Plot of Transmission")
+> hist(car$Owner, col="dodgerblue", main="Histogram of Number of Previous Owners")
+> ###2. REGRESSION AND PREDICTION 
+> #Predicting price 
+> fit<-lm(Present_Price~., data=car)
+> #Get the model's summary
+> summary(fit)
+> #Check for variables importance
+> library(caret)
+> varImp(fit)
+> #Partition the dataset
+> #Setting seed to reproduce results of random sampling
+> set.seed(100) 
+> trainingRowIndex <- sample(1:nrow(car), 0.8*nrow(car))  
+> trainingData <- car[trainingRowIndex, ]  
+> testData  <- car[-trainingRowIndex, ]
+> #Linear Regression algorithm
+> train.control <- trainControl(method = "cv", number = 10) # k-folds CV with k=10
+> train.control2 <- trainControl(method = "LOOCV") # leave-one-out CV
+> linear.model <- train(Present_Price ~., data = trainingData,method = "lm", trControl = train.control, preProc = c("center"))
+> linear.model
+> linear.model$results
+> #Predict values in the testing set
+> linear.predict <- predict(linear.model, testData)
+> #The accuracy of the model
+> postResample(linear.predict, testData$Present_Price)
+> ##Support Vector Machine Linear modeling
+> # k-folds CV with k=10
+> train.control <- trainControl(method = "cv", number = 10) 
+> #Leave-one-out CV
+> train.control2 <- trainControl(method = "LOOCV") 
+> #Inspect a specific ML algorithm
+> svmL.info <- getModelInfo("svmLinear")
+> #Look at the algorithm parameters that can be modified
+> svmL.info$svmLinear$parameters 
+> #Specify values that you want to feed into the model training function
+> tune.grid <- expand.grid(C = c(0.001, 0.01, 0.1, 1, 10, 100))
+> svmL.model <- train(Present_Price ~., data = trainingData, method = "svmLinear", trControl = train.control, tuneGrid = tune.grid, preProc = c("center"))
+> svmL.model
+> svmL.model$results
+> #Testing predictive ability of model in test data
+> svmL.predict <- predict(svmL.model, testData) 
+> postResample(svmL.predict, testData$Present_Price)
+> #Random Forest
+> train.control <- trainControl(method = "cv", number = 10) # k-folds CV with k=10
+> train.control2 <- trainControl(method = "LOOCV") # leave-one-out CV
+> #Model tuning
+> rf.info <- getModelInfo("rf")
+> rf.info$rf$parameters
+> tune.grid <- expand.grid(mtry = c(2, 3, 4))
+> #Model training
+> rf.model <- train(Present_Price ~., data = trainingData, method = "rf", trControl = train.control, preProc = c("center"))
+> rf.model
+> rf.model$results
+> #Testing predictive ability of model in test data
+> rf.predict <- predict(rf.model, testData)
+> postResample(rf.predict, testData$Present_Price)
+> ##Model Comparisons
+> RMSE_Training <- c(linear.model$results$RMSE, svmL.model$results$RMSE[1]
++ , rf.model$results$RMSE[1])
+> RSq_Training <- c(linear.model$results$Rsquared, svmL.model$results$Rsquared[1]
++ , rf.model$results$Rsquared[1])
+> RMSE_Testing <- c(postResample(linear.predict, testData$Present_Price)[1], postResample(svmL.predict, testData$Present_Price)[1], postResample(rf.predict, testData$Present_Price)[1])
+> RSq_Testing <- c(postResample(linear.predict, testData$Present_Price)[2], postResample(svmL.predict, testData$Present_Price)[2], postResample(rf.predict, testData$Present_Price)[2])
+> Algorithm <- c("Linear Regression", "Support Vector Machine", "Random Forest")
+> data.frame(cbind(Algorithm, RMSE_Training, RSq_Training, RMSE_Testing, RSq_Testing)
+> #Saving the final dataset to Excel 
+> library(writexl)
+> write_xlsx(car,"C:/Users/user/Desktop/my work/car data.xlsx")
+> ###END OF CODE
